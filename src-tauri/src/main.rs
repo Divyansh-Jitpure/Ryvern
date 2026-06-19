@@ -10,6 +10,10 @@ fn main() {
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![cursor_position])
         .setup(|app| {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.set_ignore_cursor_events(true);
+            }
+
             let show_hide = MenuItem::with_id(app, "show_hide", "Show/Hide", true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&show_hide, &quit])?;
@@ -104,3 +108,4 @@ fn make_tray_icon_rgba() -> Vec<u8> {
 
     rgba
 }
+

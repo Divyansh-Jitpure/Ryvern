@@ -7,7 +7,11 @@ export default defineConfig({
   server: {
     host: "127.0.0.1",
     port: 1420,
-    strictPort: true
+    strictPort: true,
+    watch: {
+      // Cargo continuously replaces executables here, which Windows cannot watch reliably.
+      ignored: ["**/src-tauri/target/**"]
+    }
   },
   envPrefix: ["VITE_", "TAURI_"]
 });

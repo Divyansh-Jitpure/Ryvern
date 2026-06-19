@@ -4,8 +4,7 @@ import { getCurrentWindow, PhysicalPosition } from "@tauri-apps/api/window";
 import {
   Application,
   Container,
-  Graphics,
-  type FederatedPointerEvent
+  Graphics
 } from "pixi.js";
 import {
   createInitialPetState,
@@ -57,14 +56,6 @@ export function PetCanvas() {
       }
 
       const stage = app.stage;
-      stage.eventMode = "static";
-      stage.hitArea = app.screen;
-      stage.on("pointermove", (event: FederatedPointerEvent) => {
-        mouse.x =
-          petState.position.x - PET_CANVAS_WIDTH / 2 + event.global.x;
-        mouse.y =
-          petState.position.y - PET_CANVAS_HEIGHT / 2 + event.global.y;
-      });
 
       const pet = new Container();
       const body = new Graphics();
@@ -119,8 +110,7 @@ export function PetCanvas() {
           mouse.y = y;
         })
         .catch(() => {
-          // The pointer event fallback still works when a platform blocks
-          // global cursor access, but it only tracks movement over this window.
+          // Cursor tracking for this MVP comes from the Tauri command so the pet can stay click-through.
         });
     }, 33);
 
@@ -135,6 +125,7 @@ export function PetCanvas() {
     <div
       ref={hostRef}
       className="petCanvas"
+      style={{ pointerEvents: "none" }}
       aria-label="Ryvern dragon companion"
     />
   );
@@ -249,3 +240,5 @@ function drawPixelZ(graphics: Graphics, x: number, y: number) {
   graphics.rect(x + size, y + size * 3, size, size).fill(color);
   graphics.rect(x, y + size * 4, size * 5, size).fill(color);
 }
+
+

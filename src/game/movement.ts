@@ -5,8 +5,13 @@ export interface Point {
   y: number;
 }
 
-const WALK_SPEED_PIXELS_PER_SECOND = 95;
-const EASE_STOP = 0.78;
+const MAX_WALK_SPEED_PIXELS_PER_SECOND = 190;
+const MIN_WALK_SPEED_PIXELS_PER_SECOND = 38;
+const ARRIVE_DISTANCE = 180;
+const SNAP_DISTANCE = 6;
+const ACCELERATION_PIXELS_PER_SECOND = 900;
+const IDLE_DAMPING = 0.82;
+const MIN_VELOCITY = 4;
 
 export function distanceBetween(a: Point, b: Point): number {
   return Math.hypot(a.x - b.x, a.y - b.y);
@@ -18,46 +23,100 @@ export function movePetTowardMouse(
   deltaSeconds: number,
   bounds?: { width: number; height: number }
 ): PetState {
+  const dx = mouse.x - state.position.x;
+  const dy = mouse.y - state.position.y;
+  const distance = Math.hypot(dx, dy);
+
   if (state.mood !== "walking") {
+    const velocity = dampVelocity(state.velocity, IDLE_DAMPING);
+
     return {
       ...state,
-      velocity: {
-        x: state.velocity.x * EASE_STOP,
-        y: state.velocity.y * EASE_STOP
-      }
+      velocity,
+      facing: velocity.x < -MIN_VELOCITY ? -1 : velocity.x > MIN_VELOCITY ? 1 : state.facing
     };
   }
 
-  const dx = mouse.x - state.position.x;
-  const dy = mouse.y - state.position.y;
-  const distance = Math.max(Math.hypot(dx, dy), 1);
-  const step = Math.min(WALK_SPEED_PIXELS_PER_SECOND * deltaSeconds, distance);
-  const velocity = {
-    x: (dx / distance) * step,
-    y: (dy / distance) * step
+  if (distance <= SNAP_DISTANCE) {
+    return {
+      ...state,
+      position: bounds ? clampToBounds(mouse, bounds) : mouse,
+      velocity: { x: 0, y: 0 },
+      facing: dx < 0 ? -1 : 1
+    };
+  }
+
+  const direction = {
+    x: dx / distance,
+    y: dy / distance
+  };
+  const desiredSpeed = getDesiredSpeed(distance);
+  const desiredVelocity = {
+    x: direction.x * desiredSpeed,
+    y: direction.y * desiredSpeed
+  };
+  const velocity = approachVelocity(
+    state.velocity,
+    desiredVelocity,
+    ACCELERATION_PIXELS_PER_SECOND * deltaSeconds
+  );
+  const position = {
+    x: state.position.x + velocity.x * deltaSeconds,
+    y: state.position.y + velocity.y * deltaSeconds
   };
 
   return {
     ...state,
-    position: bounds
-      ? clampToBounds(
-          {
-            x: state.position.x + velocity.x,
-            y: state.position.y + velocity.y
-          },
-          bounds
-        )
-      : {
-          x: state.position.x + velocity.x,
-          y: state.position.y + velocity.y
-        },
+    position: bounds ? clampToBounds(position, bounds) : position,
     velocity,
-    facing: dx < 0 ? -1 : 1
+    facing: velocity.x < 0 ? -1 : 1
   };
 }
 
 export function shouldAnimateWalk(mood: PetMood): boolean {
   return mood === "walking";
+}
+
+function getDesiredSpeed(distance: number): number {
+  if (distance >= ARRIVE_DISTANCE) {
+    return MAX_WALK_SPEED_PIXELS_PER_SECOND;
+  }
+
+  const ratio = distance / ARRIVE_DISTANCE;
+  const easedRatio = ratio * ratio * (3 - 2 * ratio);
+
+  return (
+    MIN_WALK_SPEED_PIXELS_PER_SECOND +
+    (MAX_WALK_SPEED_PIXELS_PER_SECOND - MIN_WALK_SPEED_PIXELS_PER_SECOND) * easedRatio
+  );
+}
+
+function approachVelocity(current: Point, target: Point, maxDelta: number): Point {
+  const deltaX = target.x - current.x;
+  const deltaY = target.y - current.y;
+  const deltaLength = Math.hypot(deltaX, deltaY);
+
+  if (deltaLength <= maxDelta || deltaLength === 0) {
+    return target;
+  }
+
+  return {
+    x: current.x + (deltaX / deltaLength) * maxDelta,
+    y: current.y + (deltaY / deltaLength) * maxDelta
+  };
+}
+
+function dampVelocity(velocity: Point, damping: number): Point {
+  const nextVelocity = {
+    x: velocity.x * damping,
+    y: velocity.y * damping
+  };
+
+  if (Math.hypot(nextVelocity.x, nextVelocity.y) < MIN_VELOCITY) {
+    return { x: 0, y: 0 };
+  }
+
+  return nextVelocity;
 }
 
 function clampToBounds(point: Point, bounds: { width: number; height: number }) {
