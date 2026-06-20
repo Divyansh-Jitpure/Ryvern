@@ -41,6 +41,9 @@ export function PetCanvas() {
       y: PET_CANVAS_HEIGHT / 2
     });
     const mouse: Point = { ...petState.position };
+    let stationaryCursorSeconds = 0;
+    let isUserActive = false;
+    let isWorking = false;
     const tauriWindow = getCurrentWindow();
 
     async function mountPixi() {
@@ -82,7 +85,12 @@ export function PetCanvas() {
       // to draw the current mood. That keeps sprite swaps independent from AI.
       app.ticker.add((ticker) => {
         const deltaSeconds = ticker.deltaMS / 1000;
-        petState = updatePetState(petState, { mouse, deltaSeconds });
+        petState = updatePetState(petState, {
+          mouse,
+          deltaSeconds,
+          isUserActive,
+          isWorking
+        });
         petState = movePetTowardMouse(petState, mouse, deltaSeconds);
 
         windowMoveAccumulator += deltaSeconds;
@@ -102,8 +110,15 @@ export function PetCanvas() {
 
     void mountPixi();
     const cursorTimer = window.setInterval(() => {
-      void invoke<[number, number]>("cursor_position")
-        .then(([x, y]) => {
+      void invoke<[number, number, number, number]>("input_snapshot")
+        .then(([x, y, lastInputAgeMs, keyboardInputAgeMs]) => {
+          const cursorMoved = Math.hypot(x - mouse.x, y - mouse.y) >= 1;
+          stationaryCursorSeconds = cursorMoved
+            ? 0
+            : stationaryCursorSeconds + 0.033;
+          isUserActive = lastInputAgeMs <= 1200;
+          isWorking =
+            keyboardInputAgeMs <= 1200 && stationaryCursorSeconds >= 0.15;
           mouse.x = x;
           mouse.y = y;
         })

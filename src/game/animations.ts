@@ -33,16 +33,28 @@ export const petSpriteAnimations: Record<PetMood, SpriteAnimationDefinition> = {
     loop: true
   },
   walking: {
-    // These slices are the source sheet's two FLY / HOVER poses. The current
-    // filenames predate the visual review, so map by pose rather than label.
     fps: 6,
-    frames: [spriteFrame("sleep-1"), spriteFrame("sleep-2")],
+    frames: [spriteFrame("hover-1"), spriteFrame("hover-2")],
+    loop: true
+  },
+  working: {
+    fps: 6,
+    frames: [
+      spriteFrame("working-1"),
+      spriteFrame("working-2"),
+      spriteFrame("working-3"),
+      spriteFrame("working-2"),
+      spriteFrame("working-5"),
+      spriteFrame("working-6"),
+      spriteFrame("working-5"),
+      spriteFrame("working-4")
+    ],
     loop: true
   },
   sleeping: {
     // Both seated frames have closed eyes and make a subtle breathing cycle.
     fps: 1,
-    frames: [spriteFrame("idle-2"), spriteFrame("walk-4")],
+    frames: [spriteFrame("idle-2"), spriteFrame("idle-6")],
     loop: true
   }
 };
@@ -67,6 +79,13 @@ export function getPetAnimationFrame(
         bobY: Math.sin(animationSeconds * 2.4) * 1.5,
         blink: true,
         tailAngle: -0.35
+      };
+    case "working":
+      return {
+        bodySquash: 1,
+        bobY: Math.sin(animationSeconds * 7) * 0.75,
+        blink: false,
+        tailAngle: Math.sin(animationSeconds * 5) * 0.1
       };
     case "idle":
     default:

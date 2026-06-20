@@ -1,12 +1,13 @@
-Drop Ryvern sprite frames into this folder using these file names:
+Ryvern sprite frame naming:
 - idle-1.png
 - idle-2.png
-- walk-1.png
-- walk-2.png
-- walk-3.png
-- walk-4.png
-- sleep-1.png
-- sleep-2.png
+- idle-3.png to idle-6.png
+- hover-1.png
+- hover-2.png
+- working-1.png onward
 
 The app will automatically switch from placeholder vector graphics to sprite rendering
 when all required files are present.
+
+Regenerate the working frames from the source sheet with:
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/extract-working-sprites.ps1

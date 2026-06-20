@@ -5,12 +5,12 @@ export interface Point {
   y: number;
 }
 
-const MAX_WALK_SPEED_PIXELS_PER_SECOND = 190;
-const MIN_WALK_SPEED_PIXELS_PER_SECOND = 38;
-const ARRIVE_DISTANCE = 180;
+const MAX_WALK_SPEED_PIXELS_PER_SECOND = 170;
+const MIN_WALK_SPEED_PIXELS_PER_SECOND = 30;
+const ARRIVE_DISTANCE = 200;
 const SNAP_DISTANCE = 6;
-const ACCELERATION_PIXELS_PER_SECOND = 900;
-const IDLE_DAMPING = 0.82;
+const ACCELERATION_PIXELS_PER_SECOND = 700;
+const IDLE_DAMPING_PER_SECOND = 0.0001;
 const MIN_VELOCITY = 4;
 
 export function distanceBetween(a: Point, b: Point): number {
@@ -28,7 +28,7 @@ export function movePetTowardMouse(
   const distance = Math.hypot(dx, dy);
 
   if (state.mood !== "walking") {
-    const velocity = dampVelocity(state.velocity, IDLE_DAMPING);
+    const velocity = dampVelocity(state.velocity, deltaSeconds);
 
     return {
       ...state,
@@ -106,7 +106,8 @@ function approachVelocity(current: Point, target: Point, maxDelta: number): Poin
   };
 }
 
-function dampVelocity(velocity: Point, damping: number): Point {
+function dampVelocity(velocity: Point, deltaSeconds: number): Point {
+  const damping = Math.pow(IDLE_DAMPING_PER_SECOND, deltaSeconds);
   const nextVelocity = {
     x: velocity.x * damping,
     y: velocity.y * damping

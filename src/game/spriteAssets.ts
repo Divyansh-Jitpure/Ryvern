@@ -14,6 +14,7 @@ export async function loadPetSpriteSet(): Promise<PetSpriteSet | null> {
     const texturesByMood = {
       idle: await loadMoodTextures("idle"),
       walking: await loadMoodTextures("walking"),
+      working: await loadMoodTextures("working"),
       sleeping: await loadMoodTextures("sleeping")
     } satisfies Record<PetMood, Texture[]>;
 

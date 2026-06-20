@@ -1,6 +1,6 @@
 import { distanceBetween, type Point } from "./movement";
 
-export type PetMood = "idle" | "walking" | "sleeping";
+export type PetMood = "idle" | "walking" | "working" | "sleeping";
 
 export interface PetState {
   mood: PetMood;
@@ -14,6 +14,8 @@ export interface PetState {
 export interface PetStateInput {
   mouse: Point;
   deltaSeconds: number;
+  isUserActive: boolean;
+  isWorking: boolean;
 }
 
 const WALK_START_DISTANCE = 92;
@@ -36,12 +38,17 @@ export function createInitialPetState(position: Point): PetState {
 // those concerns into React.
 export function updatePetState(state: PetState, input: PetStateInput): PetState {
   const distanceToMouse = distanceBetween(state.position, input.mouse);
-  const nextMood = chooseMood(state, distanceToMouse, input.deltaSeconds);
+  const nextMood = chooseMood(state, input, distanceToMouse);
 
   return {
     ...state,
     mood: nextMood,
-    idleSeconds: nextMood === "idle" ? state.idleSeconds + input.deltaSeconds : 0,
+    idleSeconds:
+      nextMood === "sleeping"
+        ? state.idleSeconds
+        : nextMood === "idle" && !input.isUserActive
+          ? state.idleSeconds + input.deltaSeconds
+          : 0,
     animationSeconds:
       nextMood === state.mood ? state.animationSeconds + input.deltaSeconds : 0
   };
@@ -49,8 +56,8 @@ export function updatePetState(state: PetState, input: PetStateInput): PetState 
 
 function chooseMood(
   state: PetState,
-  distanceToMouse: number,
-  deltaSeconds: number
+  input: PetStateInput,
+  distanceToMouse: number
 ): PetMood {
   if (distanceToMouse > WALK_START_DISTANCE) {
     return "walking";
@@ -60,8 +67,21 @@ function chooseMood(
     return "walking";
   }
 
-  const idleSeconds =
-    state.mood === "idle" ? state.idleSeconds + deltaSeconds : 0;
+  if (state.mood === "sleeping" && !input.isUserActive) {
+    return "sleeping";
+  }
+
+  if (input.isWorking) {
+    return "working";
+  }
+
+  if (input.isUserActive) {
+    return "idle";
+  }
+
+  const idleSeconds = state.mood === "idle"
+    ? state.idleSeconds + input.deltaSeconds
+    : 0;
 
   if (idleSeconds >= SLEEP_AFTER_SECONDS) {
     return "sleeping";

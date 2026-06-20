@@ -8,7 +8,7 @@ use tauri::{
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![cursor_position])
+        .invoke_handler(tauri::generate_handler![input_snapshot])
         .setup(|app| {
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.set_ignore_cursor_events(true);
@@ -52,28 +52,70 @@ fn main() {
 }
 
 #[tauri::command]
-fn cursor_position() -> Result<(f64, f64), String> {
-    platform_cursor_position()
+fn input_snapshot() -> Result<(f64, f64, u32, u32), String> {
+    platform_input_snapshot()
 }
 
 #[cfg(target_os = "windows")]
-fn platform_cursor_position() -> Result<(f64, f64), String> {
+fn platform_input_snapshot() -> Result<(f64, f64, u32, u32), String> {
+    use std::mem::size_of;
+    use std::sync::atomic::{AtomicU32, Ordering};
     use windows_sys::Win32::Foundation::POINT;
+    use windows_sys::Win32::System::SystemInformation::GetTickCount;
+    use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
+        GetAsyncKeyState, GetLastInputInfo, LASTINPUTINFO,
+    };
     use windows_sys::Win32::UI::WindowsAndMessaging::GetCursorPos;
+
+    static LAST_KEYBOARD_INPUT_TICK: AtomicU32 = AtomicU32::new(0);
 
     let mut point = POINT { x: 0, y: 0 };
     let ok = unsafe { GetCursorPos(&mut point) };
 
     if ok == 0 {
-        Err("GetCursorPos failed".to_string())
-    } else {
-        Ok((point.x as f64, point.y as f64))
+        return Err("GetCursorPos failed".to_string());
     }
+
+    let mut last_input = LASTINPUTINFO {
+        cbSize: size_of::<LASTINPUTINFO>() as u32,
+        dwTime: 0,
+    };
+    let ok = unsafe { GetLastInputInfo(&mut last_input) };
+
+    if ok == 0 {
+        return Err("GetLastInputInfo failed".to_string());
+    }
+
+    let now = unsafe { GetTickCount() };
+    let input_age_ms = now.wrapping_sub(last_input.dwTime);
+
+    // Observe only whether a keyboard key changed state. No key identity or
+    // typed content crosses the command boundary or is stored by the app.
+    let keyboard_active = (0x08..=0xFE)
+        .any(|virtual_key| unsafe { GetAsyncKeyState(virtual_key) } as u16 & 0x8001 != 0);
+
+    if keyboard_active {
+        LAST_KEYBOARD_INPUT_TICK.store(now, Ordering::Relaxed);
+    }
+
+    let last_keyboard_tick = LAST_KEYBOARD_INPUT_TICK.load(Ordering::Relaxed);
+    let keyboard_input_age_ms = if last_keyboard_tick == 0 {
+        u32::MAX
+    } else {
+        now.wrapping_sub(last_keyboard_tick)
+    };
+
+    Ok((
+        point.x as f64,
+        point.y as f64,
+        input_age_ms,
+        keyboard_input_age_ms,
+    ))
 }
 
 #[cfg(not(target_os = "windows"))]
-fn platform_cursor_position() -> Result<(f64, f64), String> {
-    Err("Global cursor tracking is implemented for Windows in this MVP.".to_string())
+fn platform_input_snapshot() -> Result<(f64, f64, u32, u32), String> {
+    Err("Global input tracking is implemented for Windows in this MVP.".to_string())
 }
 
 fn make_tray_icon_rgba() -> Vec<u8> {
