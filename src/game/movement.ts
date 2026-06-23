@@ -5,8 +5,15 @@ export interface Point {
   y: number;
 }
 
-const MAX_WALK_SPEED_PIXELS_PER_SECOND = 170;
-const MIN_WALK_SPEED_PIXELS_PER_SECOND = 30;
+export interface ScreenBounds {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+const MAX_WALK_SPEED_PIXELS_PER_SECOND = 200;
+const MIN_WALK_SPEED_PIXELS_PER_SECOND = 50;
 const ARRIVE_DISTANCE = 200;
 const SNAP_DISTANCE = 6;
 const ACCELERATION_PIXELS_PER_SECOND = 700;
@@ -17,19 +24,14 @@ export function distanceBetween(a: Point, b: Point): number {
   return Math.hypot(a.x - b.x, a.y - b.y);
 }
 
-export function movePetTowardMouse(
+export function updatePetPosition(
   state: PetState,
-  mouse: Point,
   deltaSeconds: number,
-  bounds?: { width: number; height: number }
+  bounds: ScreenBounds
 ): PetState {
-  const dx = mouse.x - state.position.x;
-  const dy = mouse.y - state.position.y;
-  const distance = Math.hypot(dx, dy);
-
-  if (state.mood !== "walking") {
+  // If we aren't walking or don't have a destination target, slow down to a stop.
+  if (state.mood !== "walking" || !state.targetPosition) {
     const velocity = dampVelocity(state.velocity, deltaSeconds);
-
     return {
       ...state,
       velocity,
@@ -37,11 +39,19 @@ export function movePetTowardMouse(
     };
   }
 
+  const target = state.targetPosition;
+  const dx = target.x - state.position.x;
+  const dy = target.y - state.position.y;
+  const distance = Math.hypot(dx, dy);
+
+  // If close enough to target, snap to it and reset target to stop walking.
   if (distance <= SNAP_DISTANCE) {
     return {
       ...state,
-      position: bounds ? clampToBounds(mouse, bounds) : mouse,
+      position: clampToScreen(target, bounds),
       velocity: { x: 0, y: 0 },
+      targetPosition: null,
+      mood: "idle",
       facing: dx < 0 ? -1 : 1
     };
   }
@@ -67,7 +77,7 @@ export function movePetTowardMouse(
 
   return {
     ...state,
-    position: bounds ? clampToBounds(position, bounds) : position,
+    position: clampToScreen(position, bounds),
     velocity,
     facing: velocity.x < 0 ? -1 : 1
   };
@@ -120,11 +130,10 @@ function dampVelocity(velocity: Point, deltaSeconds: number): Point {
   return nextVelocity;
 }
 
-function clampToBounds(point: Point, bounds: { width: number; height: number }) {
-  const padding = 24;
-
+export function clampToScreen(point: Point, bounds: ScreenBounds): Point {
+  const padding = 80; // Keep the companion safely on the active screen
   return {
-    x: Math.min(Math.max(point.x, padding), bounds.width - padding),
-    y: Math.min(Math.max(point.y, padding), bounds.height - padding)
+    x: Math.min(Math.max(point.x, bounds.x + padding), bounds.x + bounds.width - padding),
+    y: Math.min(Math.max(point.y, bounds.y + padding), bounds.y + bounds.height - padding)
   };
 }

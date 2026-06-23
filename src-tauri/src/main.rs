@@ -91,10 +91,16 @@ fn platform_input_snapshot() -> Result<(f64, f64, u32, u32), String> {
     let now = unsafe { GetTickCount() };
     let input_age_ms = now.wrapping_sub(last_input.dwTime);
 
-    // Observe only whether a keyboard key changed state. No key identity or
-    // typed content crosses the command boundary or is stored by the app.
-    let keyboard_active = (0x08..=0xFE)
-        .any(|virtual_key| unsafe { GetAsyncKeyState(virtual_key) } as u16 & 0x8001 != 0);
+    let keyboard_active = (0x08..=0xFE).any(|vk| {
+        let is_typing_key = (0x30..=0x39).contains(&vk) // 0-9
+            || (0x41..=0x5A).contains(&vk) // A-Z
+            || vk == 0x20 // space
+            || vk == 0x08 // backspace
+            || vk == 0x0D // enter
+            || vk == 0x09; // tab
+
+        is_typing_key && (unsafe { GetAsyncKeyState(vk) } as u16 & 0x8001 != 0)
+    });
 
     if keyboard_active {
         LAST_KEYBOARD_INPUT_TICK.store(now, Ordering::Relaxed);
