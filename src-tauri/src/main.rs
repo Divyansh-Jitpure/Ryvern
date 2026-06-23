@@ -147,9 +147,9 @@ fn make_tray_icon_rgba() -> Vec<u8> {
                 } else if horn_left || horn_right {
                     [246, 219, 146, 255]
                 } else if wing_left || wing_right {
-                    [101, 126, 91, 255]
+                    [81, 40, 125, 255]
                 } else {
-                    [73, 139, 105, 255]
+                    [122, 60, 187, 255]
                 };
                 rgba[index..index + 4].copy_from_slice(&color);
             }
